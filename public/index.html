@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>M3U8批量下载转MP4</title>
+  <style>
+    .container{width:700px;margin:80px auto;}
+    .form-item{margin:16px 0;}
+    textarea,input{width:100%;box-sizing:border-box;padding:10px;font-size:15px;}
+    button{padding:10px 24px;background:#007bff;color:white;border:none;font-size:15px;cursor:pointer;}
+    #log{margin-top:20px;padding:12px;border:1px solid #ccc;min-height:240px;white-space:pre-wrap;font-size:13px;}
+    .tip{color:#666;font-size:13px;}
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>M3U8批量下载工具（FFmpeg） <a href="/api/logout">退出登录</a></h2>
+  <div class="form-item">
+    <label>M3U8链接（多个使用英文分号 ; 分割）：</label>
+    <textarea id="m3u8Url" rows="5" placeholder="示例：
+https://xxx/index1.m3u8;
+https://xxx/index2.m3u8"></textarea>
+    <div class="tip">一行写多个，用英文分号隔开，可以换行</div>
+  </div>
+  <div class="form-item">
+    <label>保存文件名（多个用英文分号 ; 分割，留空自动生成，数量与链接一一对应）：</label>
+    <input type="text" id="fileName" placeholder="示例：第一集;第二集;第三集">
+    <div class="tip">链接多于文件名时，多余文件自动生成时间命名</div>
+  </div>
+  <div class="form-item">
+    <button id="startBtn">开始批量下载并转MP4</button>
+  </div>
+  <div id="log">等待操作...</div>
+</div>
+
+<script>
+const logDom = document.getElementById('log');
+function log(txt){
+  logDom.innerText += "\n"+txt;
+  logDom.scrollTop = logDom.scrollHeight;
+}
+
+document.getElementById('startBtn').onclick = async ()=>{
+  const m3u8Url = document.getElementById('m3u8Url').value.trim();
+  const fileName = document.getElementById('fileName').value.trim();
+  logDom.innerText="开始提交批量任务...\n";
+
+  const res = await fetch('/api/download',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({m3u8Url,fileName})
+  });
+  const data = await res.json();
+  log(JSON.stringify(data,null,2));
+}
+</script>
+</body>
+</html>

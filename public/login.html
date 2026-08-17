@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>登录</title>
+  <style>
+    .box{width:320px;margin:120px auto;}
+    .item{margin:12px 0;}
+    input{width:100%;padding:8px;box-sizing:border-box;font-size:16px;}
+    button{width:100%;padding:10px;background:#2478ff;color:#fff;border:none;font-size:16px;cursor:pointer;}
+  </style>
+</head>
+<body>
+<div class="box">
+  <h2>M3U8下载工具 登录</h2>
+  <div class="item">
+    <input type="text" id="username" placeholder="账号" value="">
+  </div>
+  <div class="item">
+    <input type="password" id="password" placeholder="密码" value="">
+  </div>
+  <div class="item">
+    <button id="loginBtn">登录</button>
+  </div>
+  <div id="msg" style="color:red;margin-top:10px"></div>
+</div>
+<script>
+document.getElementById('loginBtn').onclick = async ()=>{
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/api/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({username,password})
+  });
+  const data = await res.json();
+  if(data.code===0){
+    location.href='/';
+  }else{
+    document.getElementById('msg').innerText=data.msg;
+  }
+}
+</script>
+</body>
+</html>
