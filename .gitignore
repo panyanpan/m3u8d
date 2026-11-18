@@ -1,0 +1,20 @@
+# Local runtime state. The application recreates this directory on startup.
+data/*
+!data/.gitkeep
+
+# Local secrets and environment overrides.
+.env
+.env.*
+!.env.example
+
+node_modules/
+.venv/
+coverage/
+*.log
+artifacts/
+test-results/
+*.tmp
+bak/
+
+# Generated semantic-eval output (baseline.json is committed on purpose).
+eval/report.json
