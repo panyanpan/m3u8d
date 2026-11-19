@@ -16,7 +16,7 @@
   // ==================== 配置区（按需修改） ====================
   const CONFIG = {
     // Python 服务的下载接口地址（token 会自动作为查询参数拼接）
-    apiUrl: 'http://192.210.201.104:10999/api/download',
+    apiUrl: 'http://127.0.0.1:10999/api/download',
     // 任务状态查询接口前缀，最终请求形如 {taskApiPrefix}{task_id}?token=xxx
     taskApiPrefix: 'http://192.210.201.104:10999/api/task/',
     // 与 Python 服务保持一致的令牌

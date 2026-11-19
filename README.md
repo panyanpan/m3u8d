@@ -39,17 +39,22 @@ Python 服务端  →  创建任务，立即返回 task_id
 
 ## 项目结构
 
-| 文件 | 说明 |
-| --- | --- |
-| `main.py` | **本方案服务端**：FastAPI 接收提交、后台下载、任务状态查询 |
-| `tampermonkey/help.monitor.js` | **本方案浏览器脚本**：捕获 m3u8、悬浮按钮、提交与轮询 |
-| `download/` | 默认下载输出目录（服务首次启动自动创建） |
+本方案的全部文件位于仓库的 `m3u8d/` 子目录下（本 README 即在该目录中）：
+
+| 文件                             | 说明                                  |
+| ------------------------------ | ----------------------------------- |
+| `main.py`                      | **本方案服务端**：FastAPI 接收提交、后台下载、任务状态查询 |
+| `tampermonkey/help.monitor.js` | **本方案浏览器脚本**：捕获 m3u8、悬浮按钮、提交与轮询     |
+| `download/`                    | 默认下载输出目录（服务首次启动自动创建）                |
 
 > 项目中另有 `app.js`（带登录的 Node  Web 服务）、`tool/main.js`（Node 版单文件下载接口）和 `bak/` 备份文件，它们不属于本方案，仅供历史参考。注意 `app.js` 与 `main.py` 的 `/api/download` 请求格式不同，请勿混用。
 
 ---
 
 ## 环境要求
+
+|   |   |
+| - | - |
 
 - Python 3.10 或更高版本（使用了 `str | None` 类型语法；开发环境为 3.13）
 - ffmpeg（已加入 `PATH`，或通过环境变量指定绝对路径）
@@ -59,64 +64,162 @@ Python 服务端  →  创建任务，立即返回 task_id
 
 ## 一、启动服务端
 
-### 1. 安装依赖
+> 本方案的全部文件位于 `m3u8d/` 目录，以下命令默认在该目录下执行。请先 `cd` 到该目录：
+>
+> - Windows Git Bash：`cd /d/WorkBuddy/py_m3u8/m3u8d`
+> - Windows CMD：`cd /d D:\WorkBuddy\py_m3u8\m3u8d`
+> - Linux：`cd /path/to/m3u8d`
 
-用**同一个** Python 解释器安装依赖（用哪个启动就用哪个安装）：
+### 1. 环境准备
+
+**Windows**
+
+- Python 3.10+（本机可用 `py` 启动器，或 WorkBuddy 内置 Python）
+- ffmpeg（加入 `PATH`，或通过环境变量指定绝对路径）
+
+**Linux（以 Ubuntu / Debian 为例）**
 
 ```bash
-# 方式 A：Windows 的 py 启动器（推荐）
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv ffmpeg
+```
+
+CentOS / RHEL 系：`sudo yum install -y python3 python3-pip ffmpeg`
+
+安装后用 `python3 --version && ffmpeg -version` 确认两者可用。
+
+### 2. 安装依赖
+
+推荐用虚拟环境隔离依赖（**用哪个解释器启动，就用哪个解释器安装**）：
+
+**Linux（推荐 venv）**
+
+```bash
+cd /path/to/m3u8d
+python3 -m venv .venv
+source .venv/bin/activa
+```
+
+> 后续每次启动前先 `source .venv/bin/activate`；退出虚拟环境用 `deactivate`。
+
+**Windows**
+
+```bash
+# 方式 A：Windows 的 py 启动器
 py -m pip install fastapi uvicorn
 
 # 方式 B：WorkBuddy 内置 Python 的完整路径
 /c/Users/panya/.workbuddy/binaries/python/versions/3.13.12/python.exe -m pip install fastapi uvicorn
 ```
 
-### 2. 启动
+### 3. 启动
 
-如果终端里 `python` 命令不存在（本机的 Git Bash 即如此），任选以下方式：
+**Linux**
 
 ```bash
-# 方式 A：使用 Windows 的 py 启动器（最简单）
-py main.py
+# 常规启动（虚拟环境激活后，或未使用虚拟环境）
+python3 main.py
 
-# 方式 B：使用 WorkBuddy 内置 Python 的完整路径
-/c/Users/panya/.workbuddy/binaries/python/versions/3.13.12/python.exe main.py
+# 也可显式用 uvicorn 启动（效果等同于 main.py）
+uvicorn main:app --host 0.0.0.0 --port 10999
+```
 
-# 方式 C：临时把内置 Python 加入当前终端的 PATH，之后即可用 python 命令
-export PATH="/c/Users/panya/.workbuddy/binaries/python/versions/3.13.12:$PATH"
+**Windows**（终端里 `python` 命令不存在时，任选其一）
+
+```bash
+py main.py                                                          # 方式 A：py 启动器
+/c/Users/panya/.workbuddy/binaries/python/versions/3.13.12/python.exe main.py   # 方式 B：完整路径
+export PATH="/c/Users/panya/.workbuddy/binaries/python/versions/3.13.12:$PATH"  # 方式 C：临时加 PATH
 python main.py
 ```
 
-> 若已把 Python 加入系统 PATH，直接 `python main.py` 即可。启动前请先切换到项目目录：`cd /d/WorkBuddy/py_m3u8`。
-
 默认监听 `0.0.0.0:10999`，接口文档地址：<http://127.0.0.1:10999/docs>
 
-### 3. 验证
+### 4. 验证
 
 ```bash
 curl http://127.0.0.1:10999/health
 # {"ok":true,"status":"healthy",...}
 ```
 
-### 4. 环境变量配置（均为可选）
+### 5. 环境变量配置（均为可选）
 
-| 环境变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `M3U8_API_TOKEN` | `my#secret@123456` | 接口令牌，**必须与油猴脚本一致** |
-| `M3U8_SAVE_FOLDER` | `./download` | 下载输出目录 |
-| `M3U8_FFMPEG_PATH` | `ffmpeg` | ffmpeg 可执行文件路径 |
-| `M3U8_HOST` | `0.0.0.0` | 监听地址 |
-| `M3U8_PORT` | `10999` | 监听端口 |
-| `M3U8_FFMPEG_TIMEOUT` | `3600` | 单个下载超时（秒） |
-| `M3U8_MAX_CONCURRENT` | `2` | 最大并发下载数 |
+| 环境变量                  | 默认值                         | 说明                 |
+| --------------------- | --------------------------- | ------------------ |
+| `M3U8_API_TOKEN`      | `my#secret@123456`          | 接口令牌，**必须与油猴脚本一致** |
+| `M3U8_SAVE_FOLDER`    | `main.py` 同目录下的 `download/` | 下载输出目录             |
+| `M3U8_FFMPEG_PATH`    | `ffmpeg`                    | ffmpeg 可执行文件路径     |
+| `M3U8_HOST`           | `0.0.0.0`                   | 监听地址               |
+| `M3U8_PORT`           | `10999`                     | 监听端口               |
+| `M3U8_FFMPEG_TIMEOUT` | `3600`                      | 单个下载超时（秒）          |
+| `M3U8_MAX_CONCURRENT` | `2`                         | 最大并发下载数            |
 
-示例（Windows PowerShell 风格）：
+**Linux 示例**
+
+```bash
+export M3U8_API_TOKEN="my#secret@123456"
+export M3U8_SAVE_FOLDER="/data/videos"
+export M3U8_FFMPEG_PATH="/usr/bin/ffmpeg"
+python3 main.py
+```
+
+**Windows PowerShell 示例**
 
 ```powershell
-$env:M3U8_API_TOKEN="your-token"
+$env:M3U8_API_TOKEN="my#secret@123456"
 $env:M3U8_SAVE_FOLDER="D:\videos"
 python main.py
 ```
+
+### 6. Linux 后台运行（可选）
+
+**方式 A：nohup（简单）**
+
+```bash
+nohup python3 main.py > app.log 2>&1 &
+echo $! > app.pid          # 记录 PID
+tail -f app.log            # 查看日志
+kill $(cat app.pid)        # 停止服务
+```
+
+**方式 B：systemd（推荐生产环境）**
+
+创建 `/etc/systemd/system/m3u8d.service`（路径按实际修改）：
+
+```ini
+[Unit]
+Description=M3U8 Download Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/m3u8d
+ExecStart=/opt/m3u8d/.venv/bin/python main.py
+Environment="M3U8_API_TOKEN=my#secret@123456"
+Environment="M3U8_SAVE_FOLDER=/data/videos"
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now m3u8d
+sudo systemctl status m3u8d
+# 查看日志：journalctl -u m3u8d -f
+```
+
+**防火墙**（需要从其他机器访问时开放 10999 端口）
+
+```bash
+sudo ufw allow 10999/tcp                                              # Ubuntu
+sudo firewall-cmd --add-port=10999/tcp --permanent && sudo firewall-cmd --reload   # CentOS
+```
+
+> 服务监听 `0.0.0.0`，部署在公网时请务必修改默认 token，并配合防火墙/反向代理限制来源，避免接口被滥用。
 
 ---
 
@@ -196,27 +299,27 @@ const CONFIG = {
 - `token`：必须与服务端 `M3U8_API_TOKEN` 一致。
 - `pollInterval` / `pollMax`：轮询间隔与最大次数，默认最多等待 60 秒。
 
-4. 打开视频网页，等待脚本捕获地址（右上角按钮角标数字会变化）。
-5. 点击 `⬇` 按钮，在面板中选择地址、确认文件名，点击"提交下载"。
-6. 面板会显示"下载中…"直至成功（显示保存路径）或失败（显示错误原因）。
+1. 打开视频网页，等待脚本捕获地址（右上角按钮角标数字会变化）。
+2. 点击 `⬇` 按钮，在面板中选择地址、确认文件名，点击"提交下载"。
+3. 面板会显示"下载中…"直至成功（显示保存路径）或失败（显示错误原因）。
 
 ---
 
 ## 四、常见问题
 
-**Q：提交后返回 401 / token 无效**
+**Q：提交后返回 401 / token 无效**  
 检查服务端环境变量 `M3U8_API_TOKEN` 与脚本 `CONFIG.token` 是否完全一致（注意 `#`、`@` 等特殊字符的 URL 编码）。
 
-**Q：按钮角标一直是 0，捕获不到地址**
+**Q：按钮角标一直是 0，捕获不到地址**  
 部分站点的 m3u8 由播放器在点击播放时才动态请求，或地址藏在 `blob:` / 加密逻辑中。建议先触发视频播放，再查看浏览器控制台是否出现 `[m3u8助手] 捕获:` 日志。
 
-**Q：GM_xmlhttpRequest 报跨域/连接失败**
+**Q：GM_xmlhttpRequest 报跨域/连接失败**  
 确认脚本头部包含 `@connect *`（或改为 `@connect` 具体域名/IP），并在 Tampermonkey 弹出的跨域授权提示中允许。
 
-**Q：任务状态 failed，提示 ffmpeg 错误**
+**Q：任务状态 failed，提示 ffmpeg 错误**  
 确认服务端 ffmpeg 可用（`ffmpeg -version`），且该 m3u8 不需要额外的 Cookie / Referer / 鉴权头 —— 当前版本未向 ffmpeg 透传这些请求头。
 
-**Q：服务重启后任务记录不见了**
+**Q：服务重启后任务记录不见了**  
 任务状态保存在进程内内存中，重启即清空；已下载完成的文件不受影响。如需持久化可接入 SQLite。
 
 ---
