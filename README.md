@@ -287,8 +287,8 @@ curl -X POST "http://127.0.0.1:10999/api/download?token=my%23secret%40123456" \
 
 ```js
 const CONFIG = {
-  apiUrl: 'http://192.210.201.104:10999/api/download',
-  taskApiPrefix: 'http://192.210.201.104:10999/api/task/',
+  apiUrl: 'http://127.0.0.1:10999/api/download',
+  taskApiPrefix: 'http://127.0.0.1:10999/api/task/',
   token: 'my#secret@123456',
   pollInterval: 2000,
   pollMax: 30
