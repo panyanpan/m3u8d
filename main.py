@@ -5,19 +5,15 @@ m3u8 下载服务（FastAPI）
 
 依赖安装： pip install fastapi uvicorn
 启动服务： python main.py
-接口文档： http://127.0.0.1:10999/docs
+配置文件： 与 main.py 同目录的 config.json（首次使用请参考 config.example.json 创建）
+接口文档： 启动后访问 /docs
 
-可用环境变量（均有默认值，按需覆盖）：
-  M3U8_API_TOKEN       接口令牌，需与油猴脚本一致，默认 my#secret@123456
-  M3U8_SAVE_FOLDER     下载目录，默认当前目录下的 download
-  M3U8_FFMPEG_PATH     ffmpeg 可执行文件路径，默认 ffmpeg
-  M3U8_HOST            监听地址，默认 0.0.0.0
-  M3U8_PORT            监听端口，默认 10999
-  M3U8_FFMPEG_TIMEOUT  单个下载超时秒数，默认 3600
-  M3U8_MAX_CONCURRENT  最大并发下载数，默认 2
+所有运行参数（含令牌、监听地址、端口等）均来自 config.json，
+可用同名环境变量覆盖（见 README）。代码中不出现任何主机/地址字面量。
 """
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -32,15 +28,44 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ============================ 配置 ============================
-API_TOKEN = os.getenv("M3U8_API_TOKEN", "my#secret@123456")
-SAVE_FOLDER = Path(
-    os.getenv("M3U8_SAVE_FOLDER", str(Path(__file__).resolve().parent / "download"))
-)
-FFMPEG_PATH = os.getenv("M3U8_FFMPEG_PATH", "ffmpeg")
-HOST = os.getenv("M3U8_HOST", "0.0.0.0")
-PORT = int(os.getenv("M3U8_PORT", "10999"))
-FFMPEG_TIMEOUT = int(os.getenv("M3U8_FFMPEG_TIMEOUT", "3600"))
-MAX_CONCURRENT = max(1, int(os.getenv("M3U8_MAX_CONCURRENT", "2")))
+BASE_DIR = Path(__file__).resolve().parent
+CONFIG_FILE = BASE_DIR / "config.json"
+
+
+def load_config() -> dict:
+    """读取并校验本地配置文件，缺失或非法时快速失败。"""
+    if not CONFIG_FILE.exists():
+        raise RuntimeError(
+            f"缺少配置文件 {CONFIG_FILE}，请复制 config.example.json 为 config.json 并按需修改"
+        )
+    try:
+        with CONFIG_FILE.open("r", encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"配置文件 {CONFIG_FILE} 读取/解析失败: {exc}") from exc
+
+    if not isinstance(cfg, dict):
+        raise RuntimeError(f"配置文件 {CONFIG_FILE} 顶层必须是 JSON 对象")
+
+    # 必填项：令牌不能为空，其余给出合理默认
+    token = os.getenv("M3U8_API_TOKEN", cfg.get("api_token", ""))
+    if not token or token == "CHANGE_ME_TO_MATCH_TAMPERMONKEY_SCRIPT":
+        raise RuntimeError("api_token 未配置，请在 config.json 中设置与油猴脚本一致的令牌")
+    return cfg
+
+
+_CFG = load_config()
+
+API_TOKEN = os.getenv("M3U8_API_TOKEN", _CFG.get("api_token", ""))
+HOST = os.getenv("M3U8_HOST", str(_CFG.get("host", ""))) or None
+PORT = int(os.getenv("M3U8_PORT", str(_CFG.get("port", 10999))))
+_save_raw = os.getenv("M3U8_SAVE_FOLDER") or str(_CFG.get("save_folder", "download"))
+SAVE_FOLDER = Path(_save_raw)
+if not SAVE_FOLDER.is_absolute():
+    SAVE_FOLDER = BASE_DIR / SAVE_FOLDER
+FFMPEG_PATH = os.getenv("M3U8_FFMPEG_PATH", str(_CFG.get("ffmpeg_path", "ffmpeg")))
+FFMPEG_TIMEOUT = int(os.getenv("M3U8_FFMPEG_TIMEOUT", str(_CFG.get("ffmpeg_timeout", 3600))))
+MAX_CONCURRENT = max(1, int(os.getenv("M3U8_MAX_CONCURRENT", str(_CFG.get("max_concurrent", 2)))))
 
 logging.basicConfig(
     level=logging.INFO,

@@ -1,0 +1,9 @@
+{
+  "host": "0.0.0.0",
+  "port": 10999,
+  "api_token": "CHANGE_ME_TO_MATCH_TAMPERMONKEY_SCRIPT",
+  "save_folder": "download",
+  "ffmpeg_path": "ffmpeg",
+  "ffmpeg_timeout": 3600,
+  "max_concurrent": 2
+}

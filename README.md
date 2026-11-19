@@ -11,7 +11,7 @@
 - **服务端异步下载**：ffmpeg 在后台线程执行，不阻塞接口；信号量限流，默认最多 2 个并发任务。
 - **任务可追踪**：提交返回 `task_id`，可通过接口查询 `queued / running / success / failed` 状态。
 - **安全与健壮**：Token 鉴权、m3u8 地址校验、文件名清洗、ffmpeg 超时与失败清理、结构化日志。
-- **配置灵活**：服务端全部走环境变量，脚本配置集中在顶部 `CONFIG` 区。
+- **配置灵活**：服务端配置集中在本地 `config.json`（代码中不含地址/令牌），脚本配置集中在顶部 `CONFIG` 区。
 
 ---
 
@@ -142,31 +142,51 @@ curl http://127.0.0.1:10999/health
 # {"ok":true,"status":"healthy",...}
 ```
 
-### 5. 环境变量配置（均为可选）
+### 5. 配置文件（主要配置方式）
 
-| 环境变量                  | 默认值                         | 说明                 |
-| --------------------- | --------------------------- | ------------------ |
-| `M3U8_API_TOKEN`      | `my#secret@123456`          | 接口令牌，**必须与油猴脚本一致** |
-| `M3U8_SAVE_FOLDER`    | `main.py` 同目录下的 `download/` | 下载输出目录             |
-| `M3U8_FFMPEG_PATH`    | `ffmpeg`                    | ffmpeg 可执行文件路径     |
-| `M3U8_HOST`           | `0.0.0.0`                   | 监听地址               |
-| `M3U8_PORT`           | `10999`                     | 监听端口               |
-| `M3U8_FFMPEG_TIMEOUT` | `3600`                      | 单个下载超时（秒）          |
-| `M3U8_MAX_CONCURRENT` | `2`                         | 最大并发下载数            |
-
-**Linux 示例**
+服务端的全部运行参数都放在 `main.py` 同目录的 **`config.json`** 中，`main.py` 里不含任何地址/令牌字面量。首次使用请复制示例文件：
 
 ```bash
-export M3U8_API_TOKEN="my#secret@123456"
+cp config.example.json config.json      # Linux / Git Bash
+# 或 Windows CMD: copy config.example.json config.json
+```
+
+`config.json` 字段说明：
+
+| 字段 | 示例值 | 说明 |
+| --- | --- | --- |
+| `api_token` | `my#secret@123456` | 接口令牌，**必须与油猴脚本 `CONFIG.token` 一致**；未配置或仍为占位值会拒绝启动 |
+| `host` | `0.0.0.0` | 监听地址 |
+| `port` | `10999` | 监听端口 |
+| `save_folder` | `download` | 下载目录，相对路径以 `main.py` 所在目录为基准 |
+| `ffmpeg_path` | `ffmpeg` | ffmpeg 可执行文件路径 |
+| `ffmpeg_timeout` | `3600` | 单个下载超时（秒） |
+| `max_concurrent` | `2` | 最大并发下载数 |
+
+> `config.json` 含令牌，已加入 `.gitignore`，不会提交到仓库。
+
+**可选：用环境变量临时覆盖**（优先级高于配置文件，适合临时改端口/目录，不必改文件）：
+
+| 环境变量 | 对应字段 |
+| --- | --- |
+| `M3U8_API_TOKEN` | `api_token` |
+| `M3U8_HOST` | `host` |
+| `M3U8_PORT` | `port` |
+| `M3U8_SAVE_FOLDER` | `save_folder` |
+| `M3U8_FFMPEG_PATH` | `ffmpeg_path` |
+| `M3U8_FFMPEG_TIMEOUT` | `ffmpeg_timeout` |
+| `M3U8_MAX_CONCURRENT` | `max_concurrent` |
+
+Linux 示例：
+
+```bash
 export M3U8_SAVE_FOLDER="/data/videos"
-export M3U8_FFMPEG_PATH="/usr/bin/ffmpeg"
 python3 main.py
 ```
 
-**Windows PowerShell 示例**
+Windows PowerShell 示例：
 
 ```powershell
-$env:M3U8_API_TOKEN="my#secret@123456"
 $env:M3U8_SAVE_FOLDER="D:\videos"
 python main.py
 ```
@@ -195,8 +215,8 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/m3u8d
 ExecStart=/opt/m3u8d/.venv/bin/python main.py
-Environment="M3U8_API_TOKEN=my#secret@123456"
-Environment="M3U8_SAVE_FOLDER=/data/videos"
+# 配置统一从 /opt/m3u8d/config.json 读取；如需覆盖可用 Environment=，例如：
+# Environment="M3U8_SAVE_FOLDER=/data/videos"
 Restart=always
 RestartSec=3
 User=root
@@ -296,7 +316,7 @@ const CONFIG = {
 ```
 
 - `apiUrl` / `taskApiPrefix`：改为你的服务端地址；本机测试可用 `http://127.0.0.1:10999`。
-- `token`：必须与服务端 `M3U8_API_TOKEN` 一致。
+- `token`：必须与服务端 `config.json` 中的 `api_token` 一致。
 - `pollInterval` / `pollMax`：轮询间隔与最大次数，默认最多等待 60 秒。
 
 1. 打开视频网页，等待脚本捕获地址（右上角按钮角标数字会变化）。
@@ -308,7 +328,7 @@ const CONFIG = {
 ## 四、常见问题
 
 **Q：提交后返回 401 / token 无效**  
-检查服务端环境变量 `M3U8_API_TOKEN` 与脚本 `CONFIG.token` 是否完全一致（注意 `#`、`@` 等特殊字符的 URL 编码）。
+检查服务端 `config.json` 的 `api_token` 与脚本 `CONFIG.token` 是否完全一致（注意 `#`、`@` 等特殊字符的 URL 编码）。
 
 **Q：按钮角标一直是 0，捕获不到地址**  
 部分站点的 m3u8 由播放器在点击播放时才动态请求，或地址藏在 `blob:` / 加密逻辑中。建议先触发视频播放，再查看浏览器控制台是否出现 `[m3u8助手] 捕获:` 日志。
